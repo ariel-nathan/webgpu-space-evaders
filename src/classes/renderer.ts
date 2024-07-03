@@ -1,5 +1,6 @@
 import { QuadGeometry } from "../geometries/quad";
 import shaderSource from "../shaders/shader.wgsl?raw";
+import { BufferUtil } from "./buffer-util";
 import { Texture } from "./texture";
 
 export class Renderer {
@@ -11,6 +12,7 @@ export class Renderer {
   private texCoordsBuffer!: GPUBuffer;
   private texBindGroup!: GPUBindGroup;
   private testTexture!: Texture;
+  private indexBuffer!: GPUBuffer;
 
   constructor() {}
 
@@ -42,20 +44,6 @@ export class Renderer {
       this.device,
       "assets/uv_test.png",
     );
-  }
-
-  private createBuffer(data: Float32Array): GPUBuffer {
-    const buffer = this.device.createBuffer({
-      size: data.byteLength,
-      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-      mappedAtCreation: true,
-    });
-
-    new Float32Array(buffer.getMappedRange()).set(data);
-
-    buffer.unmap();
-
-    return buffer;
   }
 
   private preparePipeline() {
@@ -192,16 +180,24 @@ export class Renderer {
 
     const quad = new QuadGeometry();
 
-    this.positionBuffer = this.createBuffer(quad.positions);
-    this.colorBuffer = this.createBuffer(quad.colors);
-    this.texCoordsBuffer = this.createBuffer(quad.texCoords);
+    this.positionBuffer = BufferUtil.createVertexBuffer(
+      this.device,
+      quad.positions,
+    );
+    this.colorBuffer = BufferUtil.createVertexBuffer(this.device, quad.colors);
+    this.texCoordsBuffer = BufferUtil.createVertexBuffer(
+      this.device,
+      quad.texCoords,
+    );
+    this.indexBuffer = BufferUtil.createIndexBuffer(this.device, quad.indices);
 
     passEncoder.setPipeline(this.pipeline);
     passEncoder.setVertexBuffer(0, this.positionBuffer);
     passEncoder.setVertexBuffer(1, this.colorBuffer);
     passEncoder.setVertexBuffer(2, this.texCoordsBuffer);
     passEncoder.setBindGroup(0, this.texBindGroup);
-    passEncoder.draw(6);
+    passEncoder.setIndexBuffer(this.indexBuffer, "uint16");
+    passEncoder.drawIndexed(6);
 
     passEncoder.end();
 
