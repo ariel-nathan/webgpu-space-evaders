@@ -1,4 +1,6 @@
+import { QuadGeometry } from "../geometries/quad";
 import shaderSource from "../shaders/shader.wgsl?raw";
+import { Texture } from "./texture";
 
 export class Renderer {
   private context!: GPUCanvasContext;
@@ -6,6 +8,9 @@ export class Renderer {
   private pipeline!: GPURenderPipeline;
   private positionBuffer!: GPUBuffer;
   private colorBuffer!: GPUBuffer;
+  private texCoordsBuffer!: GPUBuffer;
+  private texBindGroup!: GPUBindGroup;
+  private testTexture!: Texture;
 
   constructor() {}
 
@@ -32,6 +37,11 @@ export class Renderer {
       device: this.device,
       format: navigator.gpu.getPreferredCanvasFormat(),
     });
+
+    this.testTexture = await Texture.createTextureFromURL(
+      this.device,
+      "assets/uv_test.png",
+    );
   }
 
   private createBuffer(data: Float32Array): GPUBuffer {
@@ -77,10 +87,22 @@ export class Renderer {
       ],
     };
 
+    const texCoordsLayout: GPUVertexBufferLayout = {
+      arrayStride: 2 * Float32Array.BYTES_PER_ELEMENT, // uv * 4 bytes per float
+      stepMode: "vertex",
+      attributes: [
+        {
+          shaderLocation: 2,
+          offset: 0,
+          format: "float32x2",
+        },
+      ],
+    };
+
     const vertexShader: GPUVertexState = {
       module: shaderModule,
       entryPoint: "vertexMain",
-      buffers: [positionBufferLayout, colorBufferLayout],
+      buffers: [positionBufferLayout, colorBufferLayout, texCoordsLayout],
     };
 
     const fragmentState: GPUFragmentState = {
@@ -89,9 +111,54 @@ export class Renderer {
       targets: [
         {
           format: navigator.gpu.getPreferredCanvasFormat(),
+          blend: {
+            color: {
+              srcFactor: "one",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+            alpha: {
+              srcFactor: "one",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+          },
         },
       ],
     };
+
+    const texBindGroupLayout = this.device.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.FRAGMENT,
+          sampler: {},
+        },
+        {
+          binding: 1,
+          visibility: GPUShaderStage.FRAGMENT,
+          texture: {},
+        },
+      ],
+    });
+
+    const pipelineLayout = this.device.createPipelineLayout({
+      bindGroupLayouts: [texBindGroupLayout],
+    });
+
+    this.texBindGroup = this.device.createBindGroup({
+      layout: texBindGroupLayout,
+      entries: [
+        {
+          binding: 0,
+          resource: this.testTexture.sampler,
+        },
+        {
+          binding: 1,
+          resource: this.testTexture.texture.createView(),
+        },
+      ],
+    });
 
     this.pipeline = this.device.createRenderPipeline({
       vertex: vertexShader,
@@ -99,7 +166,7 @@ export class Renderer {
       primitive: {
         topology: "triangle-list",
       },
-      layout: "auto",
+      layout: pipelineLayout,
     });
   }
 
@@ -123,18 +190,18 @@ export class Renderer {
       this.preparePipeline();
     }
 
-    this.positionBuffer = this.createBuffer(
-      new Float32Array([0.0, 0.5, -0.5, -0.5, 0.5, -0.5]),
-    );
+    const quad = new QuadGeometry();
 
-    this.colorBuffer = this.createBuffer(
-      new Float32Array([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]),
-    );
+    this.positionBuffer = this.createBuffer(quad.positions);
+    this.colorBuffer = this.createBuffer(quad.colors);
+    this.texCoordsBuffer = this.createBuffer(quad.texCoords);
 
     passEncoder.setPipeline(this.pipeline);
     passEncoder.setVertexBuffer(0, this.positionBuffer);
     passEncoder.setVertexBuffer(1, this.colorBuffer);
-    passEncoder.draw(3);
+    passEncoder.setVertexBuffer(2, this.texCoordsBuffer);
+    passEncoder.setBindGroup(0, this.texBindGroup);
+    passEncoder.draw(6);
 
     passEncoder.end();
 
