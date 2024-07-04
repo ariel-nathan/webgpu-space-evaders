@@ -1,19 +1,19 @@
 struct VertexOut {
   @builtin(position) position: vec4f,
-  @location(0) color: vec4f,
-  @location(1) texCoords: vec2f
+  @location(0) texCoords: vec2f,
+  @location(1) color: vec4f
 }
 
 @vertex
 fn vertexMain(
   @location(0) pos: vec2f, // xy
-  @location(1) color: vec3f, // rgb
-  @location(2) texCoords: vec2f // uv
+  @location(1) texCoords: vec2f, // uv
+  @location(2) color: vec3f // rgb
 ) -> VertexOut {
   var output : VertexOut;
   output.position = vec4f(pos, 0.0, 1.0);
-  output.color = vec4f(color, 1.0);
   output.texCoords = texCoords;
+  output.color = vec4f(color, 1.0);
 
   return output;
 }

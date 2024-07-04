@@ -7,12 +7,11 @@ export class Renderer {
   private context!: GPUCanvasContext;
   private device!: GPUDevice;
   private pipeline!: GPURenderPipeline;
-  private positionBuffer!: GPUBuffer;
-  private colorBuffer!: GPUBuffer;
-  private texCoordsBuffer!: GPUBuffer;
+  private verticesBuffer!: GPUBuffer;
   private texBindGroup!: GPUBindGroup;
-  private testTexture!: Texture;
   private indexBuffer!: GPUBuffer;
+
+  private testTexture!: Texture;
 
   constructor() {}
 
@@ -44,6 +43,19 @@ export class Renderer {
       this.device,
       "assets/uv_test.png",
     );
+
+    this.preparePipeline();
+
+    const quad = new QuadGeometry();
+
+    this.verticesBuffer = BufferUtil.createVertexBuffer(
+      this.device,
+      new Float32Array(quad.vertices),
+    );
+    this.indexBuffer = BufferUtil.createIndexBuffer(
+      this.device,
+      new Uint16Array(quad.indices),
+    );
   }
 
   private preparePipeline() {
@@ -51,8 +63,8 @@ export class Renderer {
       code: shaderSource,
     });
 
-    const positionBufferLayout: GPUVertexBufferLayout = {
-      arrayStride: 2 * Float32Array.BYTES_PER_ELEMENT, // xy * 4 bytes per float
+    const bufferLayout: GPUVertexBufferLayout = {
+      arrayStride: 7 * Float32Array.BYTES_PER_ELEMENT,
       stepMode: "vertex",
       attributes: [
         {
@@ -60,29 +72,15 @@ export class Renderer {
           offset: 0,
           format: "float32x2",
         },
-      ],
-    };
-
-    const colorBufferLayout: GPUVertexBufferLayout = {
-      arrayStride: 3 * Float32Array.BYTES_PER_ELEMENT, // rgb * 4 bytes per float
-      stepMode: "vertex",
-      attributes: [
         {
           shaderLocation: 1,
-          offset: 0,
-          format: "float32x3",
+          offset: 2 * Float32Array.BYTES_PER_ELEMENT,
+          format: "float32x2",
         },
-      ],
-    };
-
-    const texCoordsLayout: GPUVertexBufferLayout = {
-      arrayStride: 2 * Float32Array.BYTES_PER_ELEMENT, // uv * 4 bytes per float
-      stepMode: "vertex",
-      attributes: [
         {
           shaderLocation: 2,
-          offset: 0,
-          format: "float32x2",
+          offset: 4 * Float32Array.BYTES_PER_ELEMENT,
+          format: "float32x3",
         },
       ],
     };
@@ -90,7 +88,7 @@ export class Renderer {
     const vertexShader: GPUVertexState = {
       module: shaderModule,
       entryPoint: "vertexMain",
-      buffers: [positionBufferLayout, colorBufferLayout, texCoordsLayout],
+      buffers: [bufferLayout],
     };
 
     const fragmentState: GPUFragmentState = {
@@ -174,33 +172,13 @@ export class Renderer {
 
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
-    if (!this.pipeline) {
-      this.preparePipeline();
-    }
-
-    const quad = new QuadGeometry();
-
-    this.positionBuffer = BufferUtil.createVertexBuffer(
-      this.device,
-      quad.positions,
-    );
-    this.colorBuffer = BufferUtil.createVertexBuffer(this.device, quad.colors);
-    this.texCoordsBuffer = BufferUtil.createVertexBuffer(
-      this.device,
-      quad.texCoords,
-    );
-    this.indexBuffer = BufferUtil.createIndexBuffer(this.device, quad.indices);
-
     passEncoder.setPipeline(this.pipeline);
-    passEncoder.setVertexBuffer(0, this.positionBuffer);
-    passEncoder.setVertexBuffer(1, this.colorBuffer);
-    passEncoder.setVertexBuffer(2, this.texCoordsBuffer);
-    passEncoder.setBindGroup(0, this.texBindGroup);
     passEncoder.setIndexBuffer(this.indexBuffer, "uint16");
+    passEncoder.setVertexBuffer(0, this.verticesBuffer);
+    passEncoder.setBindGroup(0, this.texBindGroup);
     passEncoder.drawIndexed(6);
 
     passEncoder.end();
-
     this.device.queue.submit([commandEncoder.finish()]);
   }
 }
