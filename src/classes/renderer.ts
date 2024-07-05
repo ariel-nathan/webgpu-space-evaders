@@ -1,29 +1,27 @@
-import { QuadGeometry } from "../geometries/quad";
-import shaderSource from "../shaders/shader.wgsl?raw";
-import { BufferUtil } from "./buffer-util";
-import { Texture } from "./texture";
+import { Assets } from "./assets";
+import { Rect } from "./rect";
+import { SpriteRenderer } from "./sprite-renderer";
 
 export class Renderer {
+  private canvas!: HTMLCanvasElement;
   private context!: GPUCanvasContext;
   private device!: GPUDevice;
-  private pipeline!: GPURenderPipeline;
-  private verticesBuffer!: GPUBuffer;
-  private texBindGroup!: GPUBindGroup;
-  private indexBuffer!: GPUBuffer;
 
-  private testTexture!: Texture;
+  private passEncoder!: GPURenderPassEncoder;
+
+  private spriteRenderer!: SpriteRenderer;
 
   constructor() {}
 
   public async init() {
-    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    this.canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
-    if (!canvas) {
+    if (!this.canvas) {
       alert("Canvas not found!");
       return;
     }
 
-    this.context = canvas.getContext("webgpu") as GPUCanvasContext;
+    this.context = this.canvas.getContext("webgpu") as GPUCanvasContext;
 
     const adapter = await navigator.gpu.requestAdapter();
 
@@ -34,126 +32,19 @@ export class Renderer {
 
     this.device = await adapter.requestDevice();
 
+    await Assets.init(this.device);
+
     this.context.configure({
       device: this.device,
       format: navigator.gpu.getPreferredCanvasFormat(),
     });
 
-    this.testTexture = await Texture.createTextureFromURL(
+    this.spriteRenderer = new SpriteRenderer(
       this.device,
-      "assets/uv_test.png",
+      this.canvas.width,
+      this.canvas.height,
     );
-
-    this.preparePipeline();
-
-    const quad = new QuadGeometry();
-
-    this.verticesBuffer = BufferUtil.createVertexBuffer(
-      this.device,
-      new Float32Array(quad.vertices),
-    );
-    this.indexBuffer = BufferUtil.createIndexBuffer(
-      this.device,
-      new Uint16Array(quad.indices),
-    );
-  }
-
-  private preparePipeline() {
-    const shaderModule = this.device.createShaderModule({
-      code: shaderSource,
-    });
-
-    const bufferLayout: GPUVertexBufferLayout = {
-      arrayStride: 7 * Float32Array.BYTES_PER_ELEMENT,
-      stepMode: "vertex",
-      attributes: [
-        {
-          shaderLocation: 0,
-          offset: 0,
-          format: "float32x2",
-        },
-        {
-          shaderLocation: 1,
-          offset: 2 * Float32Array.BYTES_PER_ELEMENT,
-          format: "float32x2",
-        },
-        {
-          shaderLocation: 2,
-          offset: 4 * Float32Array.BYTES_PER_ELEMENT,
-          format: "float32x3",
-        },
-      ],
-    };
-
-    const vertexShader: GPUVertexState = {
-      module: shaderModule,
-      entryPoint: "vertexMain",
-      buffers: [bufferLayout],
-    };
-
-    const fragmentState: GPUFragmentState = {
-      module: shaderModule,
-      entryPoint: "fragmentMain",
-      targets: [
-        {
-          format: navigator.gpu.getPreferredCanvasFormat(),
-          blend: {
-            color: {
-              srcFactor: "one",
-              dstFactor: "one-minus-src-alpha",
-              operation: "add",
-            },
-            alpha: {
-              srcFactor: "one",
-              dstFactor: "one-minus-src-alpha",
-              operation: "add",
-            },
-          },
-        },
-      ],
-    };
-
-    const texBindGroupLayout = this.device.createBindGroupLayout({
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.FRAGMENT,
-          sampler: {},
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.FRAGMENT,
-          texture: {},
-        },
-      ],
-    });
-
-    const pipelineLayout = this.device.createPipelineLayout({
-      bindGroupLayouts: [texBindGroupLayout],
-    });
-
-    this.texBindGroup = this.device.createBindGroup({
-      layout: texBindGroupLayout,
-      entries: [
-        {
-          binding: 0,
-          resource: this.testTexture.sampler,
-        },
-        {
-          binding: 1,
-          resource: this.testTexture.texture.createView(),
-        },
-      ],
-    });
-
-    this.pipeline = this.device.createRenderPipeline({
-      vertex: vertexShader,
-      fragment: fragmentState,
-      primitive: {
-        topology: "triangle-list",
-      },
-      layout: pipelineLayout,
-    });
+    this.spriteRenderer.initialize();
   }
 
   public async draw() {
@@ -170,15 +61,40 @@ export class Renderer {
       ],
     };
 
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    this.passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    this.spriteRenderer.framePass(this.passEncoder);
 
-    passEncoder.setPipeline(this.pipeline);
-    passEncoder.setIndexBuffer(this.indexBuffer, "uint16");
-    passEncoder.setVertexBuffer(0, this.verticesBuffer);
-    passEncoder.setBindGroup(0, this.texBindGroup);
-    passEncoder.drawIndexed(6);
+    // Draw here
+    for (let i = 0; i < 20000; i++) {
+      this.spriteRenderer.drawSprite(
+        Assets.playerTexture,
+        new Rect(
+          Math.random() * this.canvas.width,
+          Math.random() * this.canvas.height,
+          10,
+          10,
+        ),
+      );
+    }
 
-    passEncoder.end();
+    for (let i = 0; i < 20000; i++) {
+      this.spriteRenderer.drawSprite(
+        Assets.ufoTexture,
+        new Rect(
+          Math.random() * this.canvas.width,
+          Math.random() * this.canvas.height,
+          10,
+          10,
+        ),
+      );
+    }
+
+    this.spriteRenderer.frameEnd();
+
+    // End Draw
+    this.passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);
+
+    requestAnimationFrame(() => this.draw());
   }
 }

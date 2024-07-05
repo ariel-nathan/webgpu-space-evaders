@@ -32,4 +32,16 @@ export class BufferUtil {
 
     return buffer;
   }
+
+  public static createUniformBuffer(
+    device: GPUDevice,
+    data: Float32Array,
+  ): GPUBuffer {
+    const buffer = device.createBuffer({
+      size: data.byteLength,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+
+    return buffer;
+  }
 }

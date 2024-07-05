@@ -2,6 +2,7 @@ export class Texture {
   constructor(
     public texture: GPUTexture,
     public sampler: GPUSampler,
+    public id: string,
   ) {}
 
   public static async createTexture(
@@ -37,7 +38,7 @@ export class Texture {
       minFilter: "linear",
     });
 
-    return new Texture(texture, sampler);
+    return new Texture(texture, sampler, image.src);
   }
 
   public static async createTextureFromURL(
