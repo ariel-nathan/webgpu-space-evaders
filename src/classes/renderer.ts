@@ -1,5 +1,5 @@
 import { Assets } from "./assets";
-import { Rect } from "./rect";
+import { Color } from "./color";
 import { SpriteRenderer } from "./sprite-renderer";
 
 export class Renderer {
@@ -65,29 +65,50 @@ export class Renderer {
     this.spriteRenderer.framePass(this.passEncoder);
 
     // Draw here
-    for (let i = 0; i < 20000; i++) {
-      this.spriteRenderer.drawSprite(
-        Assets.playerTexture,
-        new Rect(
-          Math.random() * this.canvas.width,
-          Math.random() * this.canvas.height,
-          10,
-          10,
-        ),
-      );
-    }
+    // for (let i = 0; i < 20000; i++) {
+    //   this.spriteRenderer.drawSprite(
+    //     Assets.playerTexture,
+    //     new Rect(
+    //       Math.random() * this.canvas.width,
+    //       Math.random() * this.canvas.height,
+    //       10,
+    //       10,
+    //     ),
+    //   );
+    // }
 
-    for (let i = 0; i < 20000; i++) {
-      this.spriteRenderer.drawSprite(
-        Assets.ufoTexture,
-        new Rect(
-          Math.random() * this.canvas.width,
-          Math.random() * this.canvas.height,
-          10,
-          10,
-        ),
-      );
-    }
+    // for (let i = 0; i < 20000; i++) {
+    //   this.spriteRenderer.drawSprite(
+    //     Assets.ufoTexture,
+    //     new Rect(
+    //       Math.random() * this.canvas.width,
+    //       Math.random() * this.canvas.height,
+    //       10,
+    //       10,
+    //     ),
+    //   );
+    // }
+
+    const playerSprite = Assets.sprites["playerShip1_blue.png"];
+    const shieldSprite = Assets.sprites["shield1.png"];
+
+    playerSprite.drawRect.x += 0.7;
+    playerSprite.drawRect.y += 0.7;
+
+    shieldSprite.drawRect.x = playerSprite.drawRect.x - 17;
+    shieldSprite.drawRect.y = playerSprite.drawRect.y - 17;
+
+    this.spriteRenderer.drawSpriteSource(
+      playerSprite.texture,
+      playerSprite.drawRect,
+      playerSprite.sourceRect,
+    );
+    this.spriteRenderer.drawSpriteSource(
+      shieldSprite.texture,
+      shieldSprite.drawRect,
+      shieldSprite.sourceRect,
+      new Color(0, 0, 1),
+    );
 
     this.spriteRenderer.frameEnd();
 
