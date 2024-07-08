@@ -5,4 +5,8 @@ export class Rect {
     public w: number,
     public h: number,
   ) {}
+
+  public copy(): Rect {
+    return new Rect(this.x, this.y, this.w, this.h);
+  }
 }

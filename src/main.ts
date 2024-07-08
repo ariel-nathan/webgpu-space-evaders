@@ -1,8 +1,23 @@
-import { Renderer } from "./classes/renderer";
+import { Engine } from "./classes/engine";
+import { Player } from "./game/player";
 import "./style.css";
 
-const renderer = new Renderer();
+const engine = new Engine();
 
-renderer.init().then(() => {
-  renderer.draw();
+engine.init().then(() => {
+  const player = new Player(
+    engine.InputManager,
+    engine.bounds[0],
+    engine.bounds[1],
+  );
+
+  engine.onUpdate = (dt) => {
+    player.update(dt);
+  };
+
+  engine.onDraw = () => {
+    player.draw(engine.spriteRenderer);
+  };
+
+  engine.draw();
 });
