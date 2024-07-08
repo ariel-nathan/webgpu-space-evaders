@@ -1,5 +1,7 @@
+import { vec2 } from "gl-matrix";
 import { Assets } from "./assets";
 import { Color } from "./color";
+import { Rect } from "./rect";
 import { SpriteRenderer } from "./sprite-renderer";
 
 export class Renderer {
@@ -47,6 +49,8 @@ export class Renderer {
     this.spriteRenderer.initialize();
   }
 
+  rotation = 0;
+
   public async draw() {
     const commandEncoder = this.device.createCommandEncoder();
 
@@ -89,25 +93,43 @@ export class Renderer {
     //   );
     // }
 
-    const playerSprite = Assets.sprites["playerShip1_blue.png"];
-    const shieldSprite = Assets.sprites["shield1.png"];
+    this.rotation += 0.01;
 
+    const playerSprite = Assets.sprites["playerShip1_blue.png"];
     playerSprite.drawRect.x += 0.7;
     playerSprite.drawRect.y += 0.7;
-
-    shieldSprite.drawRect.x = playerSprite.drawRect.x - 17;
-    shieldSprite.drawRect.y = playerSprite.drawRect.y - 17;
-
     this.spriteRenderer.drawSpriteSource(
       playerSprite.texture,
       playerSprite.drawRect,
       playerSprite.sourceRect,
+      undefined,
+      this.rotation,
+      vec2.fromValues(0.5, 0.5),
     );
+
+    const shieldSprite = Assets.sprites["shield1.png"];
+    shieldSprite.drawRect.x = playerSprite.drawRect.x - 17;
+    shieldSprite.drawRect.y = playerSprite.drawRect.y - 17;
     this.spriteRenderer.drawSpriteSource(
       shieldSprite.texture,
       shieldSprite.drawRect,
       shieldSprite.sourceRect,
       new Color(0, 0, 1),
+      this.rotation,
+      vec2.fromValues(0.5, 0.5),
+    );
+
+    const drawRect = new Rect(100, 100, 200, 200);
+    const halfWidth = Assets.uvTexture.width / 2;
+    const halfHeight = Assets.uvTexture.height / 2;
+    const sourceRect = new Rect(0, halfHeight, halfWidth, halfHeight);
+    this.spriteRenderer.drawSpriteSource(
+      Assets.uvTexture,
+      drawRect,
+      sourceRect,
+      undefined,
+      this.rotation,
+      vec2.fromValues(0.5, 0.5),
     );
 
     this.spriteRenderer.frameEnd();

@@ -1,3 +1,4 @@
+import { vec2 } from "gl-matrix";
 import { BufferUtil } from "./buffer-util";
 import { Camera } from "./camera";
 import { Color } from "./color";
@@ -29,6 +30,12 @@ export class SpriteRenderer {
   private camera!: Camera;
 
   private passEncoder!: GPURenderPassEncoder;
+
+  private v0 = vec2.create();
+  private v1 = vec2.create();
+  private v2 = vec2.create();
+  private v3 = vec2.create();
+  private rotationOrigin = vec2.create();
 
   private pipelinesPerTexture: { [id: string]: SpritePipeline } = {};
 
@@ -167,6 +174,8 @@ export class SpriteRenderer {
     rect: Rect,
     sourceRect: Rect,
     color: Color = this.defaultColor,
+    rotation: number = 0,
+    rotationAnchor?: vec2,
   ) {
     if (this.currentTexture !== texture) {
       this.currentTexture = texture;
@@ -201,9 +210,32 @@ export class SpriteRenderer {
     const u1 = (sourceRect.x + sourceRect.w) / texture.width;
     const v1 = (sourceRect.y + sourceRect.h) / texture.height;
 
+    this.v0[0] = rect.x;
+    this.v0[1] = rect.y;
+    this.v1[0] = rect.x + rect.w;
+    this.v1[1] = rect.y;
+    this.v2[0] = rect.x + rect.w;
+    this.v2[1] = rect.y + rect.h;
+    this.v3[0] = rect.x;
+    this.v3[1] = rect.y + rect.h;
+
+    if (rotation !== 0) {
+      if (rotationAnchor === undefined) {
+        vec2.copy(this.rotationOrigin, this.v0);
+      } else {
+        this.rotationOrigin[0] = this.v0[0] + rotationAnchor[0] * rect.w;
+        this.rotationOrigin[1] = this.v0[1] + rotationAnchor[1] * rect.h;
+      }
+
+      vec2.rotate(this.v0, this.v0, this.rotationOrigin, rotation);
+      vec2.rotate(this.v1, this.v1, this.rotationOrigin, rotation);
+      vec2.rotate(this.v2, this.v2, this.rotationOrigin, rotation);
+      vec2.rotate(this.v3, this.v3, this.rotationOrigin, rotation);
+    }
+
     // Top left
-    batchDrawCall.vertexData[0 + i] = rect.x;
-    batchDrawCall.vertexData[1 + i] = rect.y;
+    batchDrawCall.vertexData[0 + i] = this.v0[0];
+    batchDrawCall.vertexData[1 + i] = this.v0[1];
     batchDrawCall.vertexData[2 + i] = u0;
     batchDrawCall.vertexData[3 + i] = v0;
     batchDrawCall.vertexData[4 + i] = color.r;
@@ -211,8 +243,8 @@ export class SpriteRenderer {
     batchDrawCall.vertexData[6 + i] = color.b;
 
     // Top right
-    batchDrawCall.vertexData[7 + i] = rect.x + rect.w;
-    batchDrawCall.vertexData[8 + i] = rect.y;
+    batchDrawCall.vertexData[7 + i] = this.v1[0];
+    batchDrawCall.vertexData[8 + i] = this.v1[1];
     batchDrawCall.vertexData[9 + i] = u1;
     batchDrawCall.vertexData[10 + i] = v0;
     batchDrawCall.vertexData[11 + i] = color.r;
@@ -220,8 +252,8 @@ export class SpriteRenderer {
     batchDrawCall.vertexData[13 + i] = color.b;
 
     // Bottom left
-    batchDrawCall.vertexData[14 + i] = rect.x + rect.w;
-    batchDrawCall.vertexData[15 + i] = rect.y + rect.h;
+    batchDrawCall.vertexData[14 + i] = this.v2[0];
+    batchDrawCall.vertexData[15 + i] = this.v2[1];
     batchDrawCall.vertexData[16 + i] = u1;
     batchDrawCall.vertexData[17 + i] = v1;
     batchDrawCall.vertexData[18 + i] = color.r;
@@ -229,8 +261,8 @@ export class SpriteRenderer {
     batchDrawCall.vertexData[20 + i] = color.b;
 
     // Bottom right
-    batchDrawCall.vertexData[21 + i] = rect.x;
-    batchDrawCall.vertexData[22 + i] = rect.y + rect.h;
+    batchDrawCall.vertexData[21 + i] = this.v3[0];
+    batchDrawCall.vertexData[22 + i] = this.v3[1];
     batchDrawCall.vertexData[23 + i] = u0;
     batchDrawCall.vertexData[24 + i] = v1;
     batchDrawCall.vertexData[25 + i] = color.r;
